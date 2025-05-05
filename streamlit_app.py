@@ -24,9 +24,9 @@ def ordinal(n):
     return f"{n}{suffix}"
 
 # Parse Excel sessions
-
 def parse_excel_sessions():
     if not os.path.exists(EXCEL_FILE):
+        st.warning(f"Excel file '{EXCEL_FILE}' not found - historical sessions will be empty.")
         return pd.DataFrame(columns=['Date','Exercise','Entry'])
     df_wide = pd.read_excel(EXCEL_FILE)
     if 'Oefening' in df_wide.columns:
@@ -127,6 +127,11 @@ st.title("🏋️ Fitness Tracker")
 
 # Load data
 df_sets, df_sessions = load_data()
+# DEBUG: show parsed historical sessions from Excel and CSV
+with st.expander("Debug: Historical Sessions (df_sessions)", expanded=False):
+    st.dataframe(df_sessions)
+with st.expander("Debug: Set-Level Data (df_sets)", expanded=False):
+    st.dataframe(df_sets)
 ex_list = get_ex_list(df_sets, df_sessions)
 
 # Show form button
@@ -141,23 +146,12 @@ if st.session_state.show_form:
     # Show last 5 sessions with formatted dates
     history = df_sessions[df_sessions['Exercise'] == selected_ex].head(5)
     if not history.empty:
-        # Prepare display table
-        display = history.head(5).copy()
+        display = history.copy()
         # Format Date as '5th of May 2025'
-        display['Date'] = display['Date'].dt.day.apply(lambda d: ordinal(d) + ' of ') + display['Date'].dt.strftime('%B %Y')
+        display['Date'] = display['Date'].dt.day.apply(lambda d: ordinal(d) + ' of ' + display['Date'].dt.strftime('%B %Y'))
         display = display[['Date','Entry']]
         st.markdown(f"**Previous 5 sessions for {selected_ex}:**")
         st.table(display)
-    # Entry form
-    with st.form("entry_form"): (reactive)
-    selected_ex = st.selectbox("Exercise", ex_list)
-    # Show last 5 sessions with formatted dates
-    history = df_sessions[df_sessions['Exercise'] == selected_ex].head(5)
-    if not history.empty:
-        display = history.copy()
-        display['Date'] = display['Date'].dt.day.apply(lambda d: f"{ordinal(d)} of {display['Date'].dt.strftime('%B %Y')}" )
-        st.markdown(f"**Previous sessions for {selected_ex}:**")
-        st.table(display[['Date','Entry']])
     # Entry form
     with st.form("entry_form"):
         entry_date = st.date_input("Date", date.today())
@@ -165,17 +159,21 @@ if st.session_state.show_form:
         sets = st.number_input("Sets", min_value=1, step=1)
         reps = st.number_input("Reps", min_value=1, step=1)
         notes = st.text_area("Notes")
-        if st.form_submit_button("Add Workout"):
+        submitted = st.form_submit_button("Add Workout")
+        if submitted:
+            # Load or init manual CSV
             if os.path.exists(CSV_FILE):
                 df_csv = pd.read_csv(CSV_FILE, parse_dates=['Date'], dayfirst=True)
             else:
                 df_csv = pd.DataFrame(columns=['Date','Exercise','Weight','Sets','Reps','Notes'])
-            new = pd.DataFrame([{'Date': entry_date,
-                                 'Exercise': selected_ex,
-                                 'Weight': weight,
-                                 'Sets': sets,
-                                 'Reps': reps,
-                                 'Notes': notes}])
+            new = pd.DataFrame([{
+                'Date': entry_date,
+                'Exercise': selected_ex,
+                'Weight': weight,
+                'Sets': sets,
+                'Reps': reps,
+                'Notes': notes
+            }])
             df_csv = pd.concat([df_csv, new], ignore_index=True)
             save_manual(df_csv)
             st.success("Workout added!")
@@ -183,6 +181,8 @@ if st.session_state.show_form:
             st.experimental_rerun()
 
 # Recent entries
+st.subheader("Recent Entries (Set-Level)")
+st.dataframe(df_sets.head(20))
 st.subheader("Recent Entries (Set-Level)")
 st.dataframe(df_sets.head(20))
 
