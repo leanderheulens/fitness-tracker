@@ -70,46 +70,42 @@ df_all.sort_values('Date', ascending=False, inplace=True)
 if st.button("Log New Workout"):
     st.session_state.show_form = True
 
-# Display form in a container when flagged
+# Display form when flagged
+def workout_form():
+    st.subheader("Log New Workout")
+    with st.form("entry_form"):
+        entry_date = st.date_input("Date", date.today())
+        # Select from all existing exercises
+        exercises = sorted(df_all['Exercise'].dropna().unique())
+        exercise = st.selectbox("Exercise", exercises)
+        # Show recent history
+        history = df_all[df_all['Exercise'] == exercise]
+        if not history.empty:
+            st.markdown(f"**Previous entries for {exercise}:**")
+            st.table(history[['Date','Weight','Sets','Reps','Notes']].head(5))
+        weight = st.number_input("Weight (kg)", min_value=0.0, step=0.5)
+        sets = st.number_input("Sets", min_value=1, step=1)
+        reps = st.number_input("Reps", min_value=1, step=1)
+        notes = st.text_area("Notes")
+        submitted = st.form_submit_button("Add Workout")
+        if submitted:
+            new_row = pd.DataFrame([{ 
+                'Date': entry_date,
+                'Exercise': exercise,
+                'Weight': weight,
+                'Sets': sets,
+                'Reps': reps,
+                'Notes': notes
+            }])
+            combined = pd.concat([load_data(), new_row], ignore_index=True)
+            save_data(combined)
+            st.success("Workout added!")
+            # Hide form and rerun
+            st.session_state.show_form = False
+            st.experimental_rerun()
+
 if st.session_state.show_form:
-    with st.container():
-        st.subheader("Log New Workout")
-        with st.form("entry_form"):
-            entry_date = st.date_input("Date", date.today())
-            existing = sorted(df_all['Exercise'].dropna().unique())
-            existing.append("Other")
-            choice = st.selectbox("Exercise", existing)
-            if choice == "Other":
-                exercise = st.text_input("New Exercise Name")
-            else:
-                exercise = choice
-                history = df_all[df_all['Exercise'] == exercise]
-                if not history.empty:
-                    st.markdown(f"**Previous entries for {exercise}:**")
-                    st.table(history[['Date','Weight','Sets','Reps','Notes']].head(5))
-            weight = st.number_input("Weight (kg)", min_value=0.0, step=0.5)
-            sets = st.number_input("Sets", min_value=1, step=1)
-            reps = st.number_input("Reps", min_value=1, step=1)
-            notes = st.text_area("Notes")
-            submitted = st.form_submit_button("Add Workout")
-            if submitted:
-                if not exercise:
-                    st.error("Please enter an exercise name.")
-                else:
-                    new_row = pd.DataFrame([{ 
-                        'Date': entry_date,
-                        'Exercise': exercise,
-                        'Weight': weight,
-                        'Sets': sets,
-                        'Reps': reps,
-                        'Notes': notes
-                    }])
-                    df_new = pd.concat([load_data(), new_row], ignore_index=True)
-                    save_data(df_new)
-                    st.success("Workout added!")
-                    # hide form and rerun to refresh display
-                    st.session_state.show_form = False
-                    st.experimental_rerun()
+    workout_form()
 
 # Display recent entries
 st.subheader("Recent Entries")
