@@ -141,6 +141,19 @@ if st.session_state.show_form:
     # Show last 5 sessions with formatted dates
     history = df_sessions[df_sessions['Exercise'] == selected_ex].head(5)
     if not history.empty:
+        # Prepare display table
+        display = history.head(5).copy()
+        # Format Date as '5th of May 2025'
+        display['Date'] = display['Date'].dt.day.apply(lambda d: ordinal(d) + ' of ') + display['Date'].dt.strftime('%B %Y')
+        display = display[['Date','Entry']]
+        st.markdown(f"**Previous 5 sessions for {selected_ex}:**")
+        st.table(display)
+    # Entry form
+    with st.form("entry_form"): (reactive)
+    selected_ex = st.selectbox("Exercise", ex_list)
+    # Show last 5 sessions with formatted dates
+    history = df_sessions[df_sessions['Exercise'] == selected_ex].head(5)
+    if not history.empty:
         display = history.copy()
         display['Date'] = display['Date'].dt.day.apply(lambda d: f"{ordinal(d)} of {display['Date'].dt.strftime('%B %Y')}" )
         st.markdown(f"**Previous sessions for {selected_ex}:**")
